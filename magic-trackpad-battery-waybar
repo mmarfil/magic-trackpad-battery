@@ -1,0 +1,45 @@
+#!/bin/bash
+# Waybar helper for Magic Trackpad battery.
+# Reads JSON from the daemon and outputs Waybar return-type:json.
+
+JSON_PATH="${XDG_RUNTIME_DIR:-/tmp}/magic-trackpad-battery.json"
+
+if [[ ! -f "$JSON_PATH" ]]; then
+    echo '{"text": ""}'
+    exit 0
+fi
+
+data=$(cat "$JSON_PATH" 2>/dev/null)
+if [[ -z "$data" ]]; then
+    echo '{"text": ""}'
+    exit 0
+fi
+
+connected=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('connected', False))" 2>/dev/null)
+if [[ "$connected" != "True" ]]; then
+    echo '{"text": ""}'
+    exit 0
+fi
+
+percentage=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('percentage', 0))" 2>/dev/null)
+charging=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('charging', False))" 2>/dev/null)
+
+# Default icon: plain text label (works with any font).
+# If you have Apple SF Symbols font, replace "TP" with "􀪧" (trackpad.fill).
+icon="TP"
+
+# CSS class for styling thresholds
+class=""
+if (( percentage <= 20 )); then
+    class="critical"
+elif (( percentage <= 40 )); then
+    class="warning"
+fi
+
+tooltip="Magic Trackpad: ${percentage}%"
+if [[ "$charging" == "True" ]]; then
+    tooltip="$tooltip (charging)"
+fi
+
+printf '{"text": "%d%% %s", "class": "%s", "tooltip": "%s"}\n' \
+    "$percentage" "$icon" "$class" "$tooltip"

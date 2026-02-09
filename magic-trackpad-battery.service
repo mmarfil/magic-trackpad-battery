@@ -1,0 +1,11 @@
+[Unit]
+Description=Magic Trackpad battery monitor (Bluetooth HID)
+After=bluetooth.target
+
+[Service]
+ExecStart=%h/.local/bin/magic-trackpad-battery
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
