@@ -1,4 +1,4 @@
-# magic-trackpad
+# magic-trackpad-battery
 
 Battery monitor for Apple Magic Trackpad on Linux (Bluetooth).
 
@@ -22,7 +22,7 @@ only reports battery over USB (always 0% on Bluetooth).
 | `magic-trackpad-battery` | Main daemon (Python) — polls hidraw every 5 min |
 | `magic-trackpad-battery-waybar` | Waybar helper (Bash) — reads JSON, outputs Waybar format |
 | `magic-trackpad-battery.service` | systemd user service unit |
-| `99-magic-trackpad.rules` | udev rule for hidraw access (TAG+="uaccess") |
+| `99-magic-trackpad.rules` | udev rule for hidraw access (GROUP="input") |
 | `Makefile` | install / uninstall / test targets |
 
 ## Development Notes

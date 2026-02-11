@@ -23,8 +23,8 @@ The daemon polls every 5 minutes and writes the result as JSON for easy integrat
 ## Quick Install
 
 ```bash
-git clone https://github.com/mmarfil/magic-trackpad.git
-cd magic-trackpad
+git clone https://github.com/mmarfil/magic-trackpad-battery.git
+cd magic-trackpad-battery
 make install
 ```
 
@@ -75,7 +75,7 @@ Add it to your modules list (e.g., `"modules-right"`). The module hides itself a
 5. **Low battery alerts:** Sends desktop notifications via `notify-send` at 20%, 15%, 10%, 5%
 6. **Reconnection:** When the device disconnects, the daemon re-scans every 30 seconds
 
-The udev rule uses `TAG+="uaccess"` to grant the logged-in user read/write access to the hidraw device — no root required for the daemon itself.
+The udev rule sets `GROUP="input"` so any user in the `input` group can read the hidraw device — no root required for the daemon itself.
 
 ## File Locations
 
