@@ -51,23 +51,35 @@ HIDIOCGINPUT = _ioc(_IOC_WRITE | _IOC_READ, "H", 0x0A, REPORT_SIZE)
 
 
 def find_hidraw():
-    """Find the hidraw device for the magicmouse driver."""
+    """Find the hidraw device for the magicmouse driver.
+
+    Returns (device_path, device_name) or (None, None).
+    The device_name comes from HID_NAME in the sysfs uevent file
+    (e.g. "Apple Magic Trackpad 2").
+    """
     sysfs = "/sys/class/hidraw"
     try:
         entries = os.listdir(sysfs)
     except FileNotFoundError:
-        return None
+        return None, None
 
     for name in sorted(entries):
         uevent_path = os.path.join(sysfs, name, "device", "uevent")
         try:
+            driver = None
+            hid_name = None
             with open(uevent_path) as f:
                 for line in f:
-                    if line.strip() == "DRIVER=magicmouse":
-                        return f"/dev/{name}"
+                    stripped = line.strip()
+                    if stripped == "DRIVER=magicmouse":
+                        driver = True
+                    elif stripped.startswith("HID_NAME="):
+                        hid_name = stripped.split("=", 1)[1]
+            if driver:
+                return f"/dev/{name}", hid_name
         except (FileNotFoundError, PermissionError):
             continue
-    return None
+    return None, None
 
 
 def read_battery(fd):
@@ -136,13 +148,13 @@ def main():
     print(f"magic-trackpad-battery: JSON path: {JSON_PATH}", flush=True)
 
     while True:
-        device = find_hidraw()
+        device, device_name = find_hidraw()
         if device is None:
             write_disconnected()
             time.sleep(RETRY_INTERVAL)
             continue
 
-        print(f"magic-trackpad-battery: found {device}", flush=True)
+        print(f"magic-trackpad-battery: found {device} ({device_name})", flush=True)
         try:
             fd = os.open(device, os.O_RDWR)
         except (PermissionError, OSError) as e:
@@ -166,6 +178,7 @@ def main():
                     "percentage": percentage,
                     "charging": charging,
                     "connected": True,
+                    "device_name": device_name,
                 })
                 notified = check_low_battery(percentage, charging, notified)
                 time.sleep(POLL_INTERVAL)

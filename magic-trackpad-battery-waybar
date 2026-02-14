@@ -23,10 +23,15 @@ fi
 
 percentage=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('percentage', 0))" 2>/dev/null)
 charging=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('charging', False))" 2>/dev/null)
+device_name=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('device_name', '') or '')" 2>/dev/null)
 
-# Default icon: plain text label (works with any font).
-# If you have Apple SF Symbols font, replace "TP" with "􀪧" (trackpad.fill).
-icon="TP"
+# Short label based on device name
+case "$device_name" in
+    *Trackpad*)  label="MTP" ;;
+    *Mouse*)     label="MM"  ;;
+    *Keyboard*)  label="MK"  ;;
+    *)           label="HID" ;;
+esac
 
 # CSS class for styling thresholds
 class=""
@@ -36,10 +41,10 @@ elif (( percentage <= 40 )); then
     class="warning"
 fi
 
-tooltip="Magic Trackpad: ${percentage}%"
+tooltip="${device_name:-Apple HID}: ${percentage}%"
 if [[ "$charging" == "True" ]]; then
     tooltip="$tooltip (charging)"
 fi
 
-printf '{"text": "%d%% %s", "class": "%s", "tooltip": "%s"}\n' \
-    "$percentage" "$icon" "$class" "$tooltip"
+printf '{"text": "<span alpha=\\"50%%\\">%s</span> %d%%", "class": "%s", "tooltip": "%s"}\n' \
+    "$label" "$percentage" "$class" "$tooltip"

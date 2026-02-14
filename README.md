@@ -58,20 +58,30 @@ Add a custom module to your Waybar config (`~/.config/waybar/config.jsonc`):
     "return-type": "json",
     "interval": 60,
     "format": "{}",
-    "tooltip": true
+    "tooltip": true,
+    "markup": true
 }
 ```
 
 Add it to your modules list (e.g., `"modules-right"`). The module hides itself automatically when the trackpad is disconnected.
 
-**SF Symbols icon:** If you have Apple's SF Symbols font installed, edit `magic-trackpad-battery-waybar` and change `icon="TP"` to `icon="􀪧"` for the trackpad.fill glyph.
+The Waybar helper uses Pango markup to dim the device label, so `"markup": true` is required.
+
+**Device labels:** The helper auto-detects the device type from its Bluetooth name and shows a short label:
+
+| Device | Label |
+|--------|-------|
+| Magic Trackpad | MTP |
+| Magic Mouse | MM |
+| Magic Keyboard | MK |
+| Other | HID |
 
 ## How It Works
 
 1. **Device discovery:** Scans `/sys/class/hidraw/` for devices whose `uevent` contains `DRIVER=magicmouse`
 2. **hidraw access:** Opens `/dev/hidrawN` and issues `HIDIOCGINPUT` ioctl (read Input Report by ID)
 3. **Battery parsing:** Report `0x90` returns `[id, status, capacity]` — capacity is percentage, status bit 1 is charging
-4. **JSON output:** Writes `{"percentage": N, "charging": bool, "connected": bool}` atomically via rename
+4. **JSON output:** Writes `{"percentage": N, "charging": bool, "connected": bool, "device_name": str}` atomically via rename
 5. **Low battery alerts:** Sends desktop notifications via `notify-send` at 20%, 15%, 10%, 5%
 6. **Reconnection:** When the device disconnects, the daemon re-scans every 30 seconds
 
