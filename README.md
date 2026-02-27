@@ -20,7 +20,25 @@ This daemon reads the battery directly from the hidraw device using the `HIDIOCG
 
 The daemon polls every 5 minutes and writes the result as JSON for easy integration with status bars like Waybar.
 
-## Quick Install
+## Install (AUR)
+
+```bash
+yay -S magic-trackpad-battery-git
+sudo udevadm control --reload-rules
+systemctl --user enable --now magic-trackpad-battery
+```
+
+## Uninstall (AUR)
+
+```bash
+systemctl --user disable --now magic-trackpad-battery
+yay -R magic-trackpad-battery-git
+sudo udevadm control --reload-rules
+```
+
+## Manual Install
+
+For development or non-Arch systems:
 
 ```bash
 git clone https://github.com/mmarfil/magic-trackpad-battery.git
@@ -31,16 +49,13 @@ make install
 Then install the udev rule (requires sudo) and enable the service:
 
 ```bash
-# Grant your user access to the hidraw device
 sudo install -Dm644 99-magic-trackpad.rules /etc/udev/rules.d/99-magic-trackpad.rules
 sudo udevadm control --reload-rules
-
-# Start the battery monitor
 systemctl --user daemon-reload
 systemctl --user enable --now magic-trackpad-battery
 ```
 
-## Uninstall
+To remove a manual install:
 
 ```bash
 make uninstall
@@ -54,7 +69,7 @@ Add a custom module to your Waybar config (`~/.config/waybar/config.jsonc`):
 
 ```jsonc
 "custom/trackpad-battery": {
-    "exec": "~/.local/bin/magic-trackpad-battery-waybar",
+    "exec": "magic-trackpad-battery-waybar",
     "return-type": "json",
     "interval": 60,
     "format": "{}",
@@ -89,13 +104,13 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can read the
 
 ## File Locations
 
-| File | Installed to |
-|------|-------------|
-| `magic-trackpad-battery` | `~/.local/bin/` |
-| `magic-trackpad-battery-waybar` | `~/.local/bin/` |
-| `magic-trackpad-battery.service` | `~/.config/systemd/user/` |
-| `99-magic-trackpad.rules` | `/etc/udev/rules.d/` (sudo) |
-| Battery JSON | `$XDG_RUNTIME_DIR/magic-trackpad-battery.json` |
+| File | AUR package | Manual install |
+|------|-------------|----------------|
+| `magic-trackpad-battery` | `/usr/bin/` | `~/.local/bin/` |
+| `magic-trackpad-battery-waybar` | `/usr/bin/` | `~/.local/bin/` |
+| `magic-trackpad-battery.service` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
+| `99-magic-trackpad.rules` | `/usr/lib/udev/rules.d/` | `/etc/udev/rules.d/` (sudo) |
+| Battery JSON | `$XDG_RUNTIME_DIR/magic-trackpad-battery.json` | same |
 
 ## Compatibility
 
@@ -125,7 +140,7 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can read the
 **Waybar module not showing:**
 - The module is hidden when the trackpad is disconnected (empty `text` field)
 - Verify the JSON: `cat ${XDG_RUNTIME_DIR:-/tmp}/magic-trackpad-battery.json`
-- Run the helper manually: `~/.local/bin/magic-trackpad-battery-waybar`
+- Run the helper manually: `magic-trackpad-battery-waybar`
 
 ## Dependencies
 

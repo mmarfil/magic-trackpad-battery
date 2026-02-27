@@ -13,7 +13,7 @@ only reports battery over USB (always 0% on Bluetooth).
 - **Language:** Python 3 (stdlib only), Bash
 - **Platform:** Linux (Arch/systemd)
 - **Integration:** Waybar (custom module), notify-send (low battery alerts)
-- **Install:** Makefile → ~/.local/bin + systemd user service
+- **Install:** AUR package (`magic-trackpad-battery-git`) or Makefile for development
 
 ## Key Files
 
@@ -24,6 +24,7 @@ only reports battery over USB (always 0% on Bluetooth).
 | `magic-trackpad-battery.service` | systemd user service unit |
 | `99-magic-trackpad.rules` | udev rule for hidraw access (GROUP="input") |
 | `Makefile` | install / uninstall / test targets |
+| `aur/PKGBUILD` | Arch Linux AUR package definition |
 
 ## Development Notes
 
