@@ -26,12 +26,14 @@ The daemon polls every 5 minutes and writes the result as JSON for easy integrat
 yay -S magic-trackpad-battery-git
 sudo udevadm control --reload-rules
 systemctl --user enable --now magic-trackpad-battery
+systemctl --user enable --now magic-trackpad-autoconnect.timer
 ```
 
 ## Uninstall (AUR)
 
 ```bash
 systemctl --user disable --now magic-trackpad-battery
+systemctl --user disable --now magic-trackpad-autoconnect.timer
 yay -R magic-trackpad-battery-git
 sudo udevadm control --reload-rules
 ```
@@ -53,6 +55,7 @@ sudo install -Dm644 99-magic-trackpad.rules /etc/udev/rules.d/99-magic-trackpad.
 sudo udevadm control --reload-rules
 systemctl --user daemon-reload
 systemctl --user enable --now magic-trackpad-battery
+systemctl --user enable --now magic-trackpad-autoconnect.timer
 ```
 
 To remove a manual install:
@@ -91,6 +94,12 @@ The Waybar helper uses Pango markup to dim the device label, so `"markup": true`
 | Magic Keyboard | MK |
 | Other | HID |
 
+## Auto-Connect
+
+The package includes an auto-connect script that periodically attempts to reconnect paired Magic Trackpad devices via Bluetooth. It runs as a systemd timer (every 30 seconds) and uses `bluetoothctl` to discover and connect paired devices.
+
+The script auto-discovers any paired device with "Magic Trackpad" in its name — no MAC address configuration needed. You can also set `MAGIC_TRACKPAD_MAC` to target a specific device.
+
 ## How It Works
 
 1. **Device discovery:** Scans `/sys/class/hidraw/` for devices whose `uevent` contains `DRIVER=magicmouse`
@@ -108,7 +117,10 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can read the
 |------|-------------|----------------|
 | `magic-trackpad-battery` | `/usr/bin/` | `~/.local/bin/` |
 | `magic-trackpad-battery-waybar` | `/usr/bin/` | `~/.local/bin/` |
+| `magic-trackpad-connect` | `/usr/bin/` | `~/.local/bin/` |
 | `magic-trackpad-battery.service` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
+| `magic-trackpad-autoconnect.service` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
+| `magic-trackpad-autoconnect.timer` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
 | `99-magic-trackpad.rules` | `/usr/lib/udev/rules.d/` | `/etc/udev/rules.d/` (sudo) |
 | Battery JSON | `$XDG_RUNTIME_DIR/magic-trackpad-battery.json` | same |
 
@@ -146,7 +158,8 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can read the
 
 - Python 3 (standard library only — no pip packages)
 - `notify-send` (from `libnotify`) for low battery alerts
-- systemd (for the user service)
+- `bluetoothctl` (from `bluez-utils`) for auto-connect
+- systemd (for the user service and timer)
 - A Bluetooth stack (BlueZ) with the trackpad paired and connected
 
 ## License

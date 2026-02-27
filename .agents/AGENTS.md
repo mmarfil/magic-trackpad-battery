@@ -21,7 +21,10 @@ only reports battery over USB (always 0% on Bluetooth).
 |------|---------|
 | `magic-trackpad-battery` | Main daemon (Python) — polls hidraw every 5 min |
 | `magic-trackpad-battery-waybar` | Waybar helper (Bash) — reads JSON, outputs Waybar format |
-| `magic-trackpad-battery.service` | systemd user service unit |
+| `magic-trackpad-connect` | Auto-connect script (Bash) — reconnects paired devices via bluetoothctl |
+| `magic-trackpad-battery.service` | systemd user service for battery daemon |
+| `magic-trackpad-autoconnect.service` | systemd oneshot service for auto-connect |
+| `magic-trackpad-autoconnect.timer` | systemd timer — runs auto-connect every 30s |
 | `99-magic-trackpad.rules` | udev rule for hidraw access (GROUP="input") |
 | `Makefile` | install / uninstall / test targets |
 | `aur/PKGBUILD` | Arch Linux AUR package definition |

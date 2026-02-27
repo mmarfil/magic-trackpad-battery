@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MAX_ATTEMPTS="${MAX_ATTEMPTS:-6}"
+SLEEP_SECONDS="${SLEEP_SECONDS:-2}"
+CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-6}"
+
+log() {
+  printf '[magic-trackpad-connect] %s\n' "$*"
+}
+
+is_connected() {
+  local mac="$1"
+  bluetoothctl info "$mac" 2>/dev/null | grep -q "Connected: yes"
+}
+
+find_trackpad_devices() {
+  bluetoothctl devices Paired 2>/dev/null | awk '
+    BEGIN { IGNORECASE = 1 }
+    /magic[[:space:]]+trackpad/ { print $2 }
+  '
+}
+
+connect_device() {
+  local mac="$1"
+  local attempt=1
+
+  if is_connected "$mac"; then
+    log "already connected: $mac"
+    return 0
+  fi
+
+  while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+    if bluetoothctl --timeout "$CONNECT_TIMEOUT" connect "$mac" >/dev/null 2>&1 && is_connected "$mac"; then
+      log "connected: $mac"
+      return 0
+    fi
+    sleep "$SLEEP_SECONDS"
+    attempt=$((attempt + 1))
+  done
+
+  log "connect failed after $MAX_ATTEMPTS attempts: $mac"
+  return 1
+}
+
+main() {
+  local mac from_env status=0 found=0
+
+  if ! command -v bluetoothctl >/dev/null 2>&1; then
+    log "bluetoothctl not found"
+    exit 1
+  fi
+
+  if [ -n "${MAGIC_TRACKPAD_MAC:-}" ]; then
+    from_env="${MAGIC_TRACKPAD_MAC^^}"
+    connect_device "$from_env" || status=1
+    exit "$status"
+  fi
+
+  while IFS= read -r mac; do
+    [ -n "$mac" ] || continue
+    found=1
+    if connect_device "$mac"; then
+      exit 0
+    fi
+    status=1
+  done < <(find_trackpad_devices)
+
+  if [ "$found" -eq 0 ]; then
+    log "no paired Magic Trackpad found"
+    exit 0
+  fi
+
+  exit "$status"
+}
+
+main "$@"
