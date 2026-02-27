@@ -24,7 +24,6 @@ The daemon polls every 5 minutes and writes the result as JSON for easy integrat
 
 ```bash
 yay -S magic-trackpad-battery-git
-sudo udevadm control --reload-rules
 systemctl --user enable --now magic-trackpad-battery
 systemctl --user enable --now magic-trackpad-autoconnect.timer
 ```
@@ -109,7 +108,7 @@ The script auto-discovers any paired device with "Magic Trackpad" in its name �
 5. **Low battery alerts:** Sends desktop notifications via `notify-send` at 20%, 15%, 10%, 5%
 6. **Reconnection:** When the device disconnects, the daemon re-scans every 30 seconds
 
-The udev rule sets `GROUP="input"` so any user in the `input` group can read the hidraw device — no root required for the daemon itself.
+The udev rule uses `TAG+="uaccess"` so the logged-in user automatically gets an ACL on the hidraw device via systemd-logind — no group membership required.
 
 ## File Locations
 
@@ -131,14 +130,14 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can read the
 | Magic Trackpad 2 (A1535) | Confirmed working |
 | Magic Trackpad (USB-C, A1535-like) | Should work (same HID protocol) |
 | Magic Mouse | Likely works (same `hid_magicmouse` driver) |
-| Magic Keyboard | Likely works (same HID battery report) |
+| Magic Keyboard | Untested (shares HID battery report, but driver differences possible) |
 
 ## Troubleshooting
 
 **"Permission denied" opening hidraw:**
 - Ensure the udev rule is installed and rules are reloaded
 - Reconnect the trackpad (udev rules apply on device connect)
-- Check: `ls -la /dev/hidraw*` — the magicmouse device should show `crw-rw----` with your user having access
+- Check: `getfacl /dev/hidrawN` — should show an ACL entry for your user (granted by `uaccess`)
 
 **Device not found:**
 - Verify Bluetooth connection: `bluetoothctl info` should show the trackpad as connected

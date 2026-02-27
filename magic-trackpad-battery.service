@@ -6,6 +6,12 @@ After=bluetooth.target
 ExecStart=%h/.local/bin/magic-trackpad-battery
 Restart=on-failure
 RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+RestrictSUIDSGID=true
+LockPersonality=true
+PrivateTmp=true
 
 [Install]
 WantedBy=default.target

@@ -1,2 +1,2 @@
 # Grant logged-in user access to Apple Magic Trackpad hidraw for battery reading
-SUBSYSTEM=="hidraw", DRIVERS=="magicmouse", GROUP="input", MODE="0660"
+SUBSYSTEM=="hidraw", DRIVERS=="magicmouse", MODE="0660", TAG+="uaccess"

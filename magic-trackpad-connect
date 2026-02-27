@@ -48,7 +48,7 @@ main() {
 
   if ! command -v bluetoothctl >/dev/null 2>&1; then
     log "bluetoothctl not found"
-    exit 1
+    exit 2
   fi
 
   if [ -n "${MAGIC_TRACKPAD_MAC:-}" ]; then
