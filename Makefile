@@ -3,7 +3,7 @@ BINDIR      = $(PREFIX)/bin
 SYSTEMDDIR  = $(HOME)/.config/systemd/user
 UDEVDIR     = /etc/udev/rules.d
 
-.PHONY: install uninstall test help
+.PHONY: install uninstall test help aur-publish
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -41,6 +41,20 @@ uninstall: ## Remove all scripts and systemd units
 	@echo "Removed. To also remove the udev rule:"
 	@echo "  sudo rm -f $(UDEVDIR)/99-magic-trackpad.rules"
 	@echo "  sudo udevadm control --reload-rules"
+
+AUR_REMOTE = ssh://aur@aur.archlinux.org/magic-trackpad-battery-git.git
+
+aur-publish: ## Publish PKGBUILD to AUR
+	@echo "Publishing to AUR..."
+	$(eval AUR_TMPDIR := $(shell mktemp -d))
+	git clone $(AUR_REMOTE) $(AUR_TMPDIR)
+	cp aur/PKGBUILD $(AUR_TMPDIR)/PKGBUILD
+	cd $(AUR_TMPDIR) && makepkg --printsrcinfo > .SRCINFO
+	cd $(AUR_TMPDIR) && git add PKGBUILD .SRCINFO
+	cd $(AUR_TMPDIR) && git diff --cached --quiet && echo "AUR already up to date." || \
+		(git commit -m "Update to $$(cd $(AUR_TMPDIR) && grep pkgver PKGBUILD | head -1 | cut -d= -f2)" && git push)
+	rm -rf $(AUR_TMPDIR)
+	@echo "Done."
 
 test: ## Quick test: find device and read battery once
 	@echo "Looking for Magic Trackpad hidraw device..."

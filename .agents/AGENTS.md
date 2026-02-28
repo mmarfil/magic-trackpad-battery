@@ -29,6 +29,17 @@ only reports battery over USB (always 0% on Bluetooth).
 | `Makefile` | install / uninstall / test targets |
 | `aur/PKGBUILD` | Arch Linux AUR package definition |
 
+## AUR Publishing
+
+The package is on AUR as `magic-trackpad-battery-git`. The source of truth is `aur/PKGBUILD`.
+
+**To publish an update:**
+
+1. Update `pkgver` in `aur/PKGBUILD` (format: `rN.SHORTHASH` from `git describe --long`)
+2. Commit the PKGBUILD change to the main repo
+3. Push the main repo to GitHub (AUR package builds from the GitHub source)
+4. Run `make aur-publish` — this clones the AUR repo, copies the PKGBUILD, regenerates `.SRCINFO`, and pushes
+
 ## Development Notes
 
 - No external dependencies — Python stdlib + coreutils only
