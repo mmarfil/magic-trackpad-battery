@@ -108,7 +108,7 @@ The script auto-discovers any paired device with "Magic Trackpad" in its name �
 5. **Low battery alerts:** Sends desktop notifications via `notify-send` at 20%, 15%, 10%, 5%
 6. **Reconnection:** When the device disconnects, the daemon re-scans every 30 seconds
 
-The udev rule uses `TAG+="uaccess"` so the logged-in user automatically gets an ACL on the hidraw device via systemd-logind — no group membership required.
+The udev rule sets `GROUP="input"` so any user in the `input` group can access the hidraw device. Add yourself with `sudo usermod -aG input $USER` (requires re-login).
 
 ## File Locations
 
@@ -136,8 +136,9 @@ The udev rule uses `TAG+="uaccess"` so the logged-in user automatically gets an 
 
 **"Permission denied" opening hidraw:**
 - Ensure the udev rule is installed and rules are reloaded
+- Check you are in the `input` group: `groups | grep input` (re-login after adding)
 - Reconnect the trackpad (udev rules apply on device connect)
-- Check: `getfacl /dev/hidrawN` — should show an ACL entry for your user (granted by `uaccess`)
+- Check: `ls -la /dev/hidrawN` — group should be `input` with mode `660`
 
 **Device not found:**
 - Verify Bluetooth connection: `bluetoothctl info` should show the trackpad as connected
