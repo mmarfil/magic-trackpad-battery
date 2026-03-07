@@ -3,6 +3,20 @@
 # Reads JSON from the daemon and outputs Waybar return-type:json.
 
 JSON_PATH="${XDG_RUNTIME_DIR:-/tmp}/magic-trackpad-battery.json"
+MTP_LABEL="MTP"
+MTP_ICON="󰟸"
+MM_LABEL="MM"
+MM_ICON="󰍽"
+MK_LABEL="MK"
+MK_ICON="󰌌"
+HID_LABEL="HID"
+HID_ICON="󰁹"
+
+use_icons=false
+if [[ "$1" == "--icons" ]]; then
+    use_icons=true
+fi
+
 
 if [[ ! -f "$JSON_PATH" ]]; then
     echo '{"text": ""}'
@@ -25,12 +39,19 @@ percentage=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.std
 charging=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('charging', False))" 2>/dev/null)
 device_name=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get('device_name', '') or '')" 2>/dev/null)
 
+if $use_icons; then
+    MTP_LABEL="$MTP_ICON"
+    MM_LABEL="$MM_ICON"
+    MK_LABEL="$MK_ICON"
+    HID_LABEL="$HID_ICON"
+fi
+
 # Short label based on device name
 case "$device_name" in
-    *Trackpad*)  label="MTP" ;;
-    *Mouse*)     label="MM"  ;;
-    *Keyboard*)  label="MK"  ;;
-    *)           label="HID" ;;
+    *Trackpad*)  label="$MTP_LABEL" ;;
+    *Mouse*)     label="$MM_LABEL"  ;;
+    *Keyboard*)  label="$MK_LABEL"  ;;
+    *)           label="$HID_LABEL" ;;
 esac
 
 # CSS class for styling thresholds
