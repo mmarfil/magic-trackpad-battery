@@ -24,6 +24,7 @@ The daemon polls every 5 minutes and writes the result as JSON for easy integrat
 
 ```bash
 yay -S magic-trackpad-battery-git
+# Reconnect the Trackpad once so the new udev rule is applied.
 systemctl --user enable --now magic-trackpad-battery
 systemctl --user enable --now magic-trackpad-autoconnect.timer
 ```
@@ -35,6 +36,7 @@ systemctl --user disable --now magic-trackpad-battery
 systemctl --user disable --now magic-trackpad-autoconnect.timer
 yay -R magic-trackpad-battery-git
 sudo udevadm control --reload-rules
+systemctl --user daemon-reload
 ```
 
 ## Manual Install
@@ -50,10 +52,13 @@ make install
 Then install the udev rule (requires sudo) and enable the service:
 
 ```bash
-sudo install -Dm644 99-magic-trackpad.rules /etc/udev/rules.d/99-magic-trackpad.rules
+sudo rm -f /etc/udev/rules.d/99-magic-trackpad.rules  # remove the superseded rule, if present
+sudo install -Dm644 72-magic-trackpad.rules /etc/udev/rules.d/72-magic-trackpad.rules
 sudo udevadm control --reload-rules
+# Reconnect the Trackpad once so the new rule is applied.
 systemctl --user daemon-reload
-systemctl --user enable --now magic-trackpad-battery
+systemctl --user enable magic-trackpad-battery
+systemctl --user restart magic-trackpad-battery
 systemctl --user enable --now magic-trackpad-autoconnect.timer
 ```
 
@@ -61,7 +66,7 @@ To remove a manual install:
 
 ```bash
 make uninstall
-sudo rm -f /etc/udev/rules.d/99-magic-trackpad.rules
+sudo rm -f /etc/udev/rules.d/72-magic-trackpad.rules
 sudo udevadm control --reload-rules
 ```
 
@@ -82,16 +87,7 @@ Add a custom module to your Waybar config (`~/.config/waybar/config.jsonc`):
 
 Add it to your modules list (e.g., `"modules-right"`). The module hides itself automatically when the trackpad is disconnected.
 
-The Waybar helper uses Pango markup to dim the device label, so `"markup": true` is required.
-
-**Device labels:** The helper auto-detects the device type from its Bluetooth name and shows a short label:
-
-| Device | Label |
-|--------|-------|
-| Magic Trackpad | MTP |
-| Magic Mouse | MM |
-| Magic Keyboard | MK |
-| Other | HID |
+The helper displays the fixed label `MTP` and uses Pango markup to dim it, so `"markup": true` is required.
 
 ## Auto-Connect
 
@@ -101,14 +97,14 @@ The script auto-discovers any paired device with "Magic Trackpad" in its name �
 
 ## How It Works
 
-1. **Device discovery:** Scans `/sys/class/hidraw/` for devices whose `uevent` contains `DRIVER=magicmouse`
+1. **Device discovery:** Scans `/sys/class/hidraw/` for a Bluetooth (`HID_ID=0005`) Magic Trackpad using the `magicmouse` driver
 2. **hidraw access:** Opens `/dev/hidrawN` and issues `HIDIOCGINPUT` ioctl (read Input Report by ID)
 3. **Battery parsing:** Report `0x90` returns `[id, status, capacity]` — capacity is percentage, status bit 1 is charging
-4. **JSON output:** Writes `{"percentage": N, "charging": bool, "connected": bool, "device_name": str}` atomically via rename
+4. **JSON output:** Writes connected state as `{"percentage": N, "charging": bool, "connected": true, "device_name": str, "updated_at": epoch}` atomically via rename. Disconnected state omits `device_name`.
 5. **Low battery alerts:** Sends desktop notifications via `notify-send` at 20%, 15%, 10%, 5%
 6. **Reconnection:** When the device disconnects, the daemon re-scans every 30 seconds
 
-The udev rule sets `GROUP="input"` so any user in the `input` group can access the hidraw device. Add yourself with `sudo usermod -aG input $USER` (requires re-login).
+The udev rule grants hidraw access to the active local session through systemd-logind's `uaccess` ACL. No persistent input-group membership is required. Reconnect the Trackpad after installing or changing the rule.
 
 ## File Locations
 
@@ -120,7 +116,7 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can access t
 | `magic-trackpad-battery.service` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
 | `magic-trackpad-autoconnect.service` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
 | `magic-trackpad-autoconnect.timer` | `/usr/lib/systemd/user/` | `~/.config/systemd/user/` |
-| `99-magic-trackpad.rules` | `/usr/lib/udev/rules.d/` | `/etc/udev/rules.d/` (sudo) |
+| `72-magic-trackpad.rules` | `/usr/lib/udev/rules.d/` | `/etc/udev/rules.d/` (sudo) |
 | Battery JSON | `$XDG_RUNTIME_DIR/magic-trackpad-battery.json` | same |
 
 ## Compatibility
@@ -128,21 +124,19 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can access t
 | Device | Status |
 |--------|--------|
 | Magic Trackpad 2 (A1535) | Confirmed working |
-| Magic Trackpad (USB-C, A1535-like) | Should work (same HID protocol) |
-| Magic Mouse | Likely works (same `hid_magicmouse` driver) |
-| Magic Keyboard | Untested (shares HID battery report, but driver differences possible) |
+| Magic Trackpad (USB-C) | Expected to work over Bluetooth; hardware confirmation pending |
 
 ## Troubleshooting
 
 **"Permission denied" opening hidraw:**
 - Ensure the udev rule is installed and rules are reloaded
-- Check you are in the `input` group: `groups | grep input` (re-login after adding)
 - Reconnect the trackpad (udev rules apply on device connect)
-- Check: `ls -la /dev/hidrawN` — group should be `input` with mode `660`
+- Check: `getfacl /dev/hidrawN` — the active user should have read/write access
 
 **Device not found:**
-- Verify Bluetooth connection: `bluetoothctl info` should show the trackpad as connected
-- Check the driver: `grep -r magicmouse /sys/class/hidraw/*/device/uevent`
+- Find the address: `bluetoothctl devices Paired | grep -i 'Magic Trackpad'`
+- Verify the connection: `bluetoothctl info <MAC>` should show `Connected: yes`
+- Check the HID metadata: `grep -rE '^(DRIVER=magicmouse|HID_ID=0005:|HID_NAME=.*Magic Trackpad)' /sys/class/hidraw/*/device/uevent`
 - The `hid_magicmouse` module must be loaded: `lsmod | grep hid_magicmouse`
 
 **JSON file not updating:**
@@ -151,8 +145,15 @@ The udev rule sets `GROUP="input"` so any user in the `input` group can access t
 
 **Waybar module not showing:**
 - The module is hidden when the trackpad is disconnected (empty `text` field)
-- Verify the JSON: `cat ${XDG_RUNTIME_DIR:-/tmp}/magic-trackpad-battery.json`
+- Verify the JSON: `cat "$XDG_RUNTIME_DIR/magic-trackpad-battery.json"`
 - Run the helper manually: `magic-trackpad-battery-waybar`
+
+## Development Checks
+
+```bash
+make test   # deterministic, hardware-independent tests
+make probe  # detect a connected Bluetooth Magic Trackpad
+```
 
 ## Dependencies
 

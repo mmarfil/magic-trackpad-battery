@@ -3,8 +3,7 @@ Description=Periodic Magic Trackpad auto-connect attempts
 
 [Timer]
 OnBootSec=20s
-OnUnitActiveSec=30s
-Unit=magic-trackpad-autoconnect.service
+OnUnitInactiveSec=30s
 AccuracySec=5s
 
 [Install]

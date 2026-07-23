@@ -1,0 +1,5 @@
+# Grant the active seat access to Bluetooth Magic Trackpad hidraw.
+# Bluetooth UHID lacks seat metadata, so assign seat0 before 73-seat-late
+# applies the uaccess ACL. Products: 0265 (Lightning), 0324 (USB-C).
+SUBSYSTEM=="hidraw", KERNELS=="0005:*:0265.*", DRIVERS=="magicmouse", ENV{ID_SEAT}="seat0", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNELS=="0005:*:0324.*", DRIVERS=="magicmouse", ENV{ID_SEAT}="seat0", TAG+="uaccess"

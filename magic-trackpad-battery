@@ -4,8 +4,8 @@
 Polls HID Input Report 0x90 via /dev/hidraw to read battery percentage,
 since the kernel hid_magicmouse driver only supports battery over USB.
 
-Writes JSON to $XDG_RUNTIME_DIR/magic-trackpad-battery.json (or /tmp as
-fallback) for consumption by Waybar or other status bar helpers.
+Writes JSON to $XDG_RUNTIME_DIR/magic-trackpad-battery.json for consumption
+by Waybar or other status bar helpers.
 """
 
 import fcntl
@@ -17,10 +17,6 @@ import time
 
 POLL_INTERVAL = 300  # seconds
 RETRY_INTERVAL = 30  # seconds when device not found
-JSON_PATH = os.path.join(
-    os.environ.get("XDG_RUNTIME_DIR", "/tmp"),
-    "magic-trackpad-battery.json",
-)
 LOW_BATTERY_THRESHOLDS = [20, 15, 10, 5]
 REPORT_ID = 0x90
 REPORT_SIZE = 3  # report_id + status + capacity
@@ -51,7 +47,7 @@ HIDIOCGINPUT = _ioc(_IOC_WRITE | _IOC_READ, "H", 0x0A, REPORT_SIZE)
 
 
 def find_hidraw():
-    """Find the hidraw device for the magicmouse driver.
+    """Find a Bluetooth Magic Trackpad hidraw device.
 
     Returns (device_path, device_name) or (None, None).
     The device_name comes from HID_NAME in the sysfs uevent file
@@ -66,16 +62,21 @@ def find_hidraw():
     for name in sorted(entries):
         uevent_path = os.path.join(sysfs, name, "device", "uevent")
         try:
-            driver = None
+            driver = False
+            hid_id = None
             hid_name = None
             with open(uevent_path) as f:
                 for line in f:
                     stripped = line.strip()
                     if stripped == "DRIVER=magicmouse":
                         driver = True
+                    elif stripped.startswith("HID_ID="):
+                        hid_id = stripped.split("=", 1)[1]
                     elif stripped.startswith("HID_NAME="):
                         hid_name = stripped.split("=", 1)[1]
-            if driver:
+            is_bluetooth = hid_id is not None and hid_id.startswith("0005:")
+            is_trackpad = hid_name is not None and "magic trackpad" in hid_name.casefold()
+            if driver and is_bluetooth and is_trackpad:
                 return f"/dev/{name}", hid_name
         except (FileNotFoundError, PermissionError):
             continue
@@ -97,15 +98,26 @@ def read_battery(fd):
     # buf is mutated in place by ioctl (bytearray + mutate_flag=True default)
     status = buf[1]
     capacity = buf[2]
+    if buf[0] != REPORT_ID or capacity > 100:
+        return None
     charging = bool(status & 0x02)
     return (capacity, charging)
 
 
+def state_path():
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+    if not runtime_dir:
+        raise RuntimeError("XDG_RUNTIME_DIR is not set")
+    return os.path.join(runtime_dir, "magic-trackpad-battery.json")
+
+
 def write_json(data):
-    tmp = JSON_PATH + ".tmp"
+    path = state_path()
+    tmp = path + ".tmp"
+    state = {**data, "updated_at": int(time.time())}
     with open(tmp, "w") as f:
-        json.dump(data, f)
-    os.replace(tmp, JSON_PATH)
+        json.dump(state, f)
+    os.replace(tmp, path)
 
 
 def write_disconnected():
@@ -113,15 +125,18 @@ def write_disconnected():
 
 
 def notify_low_battery(percentage):
-    subprocess.run([
-        "notify-send",
-        "--urgency=critical",
-        "--app-name=Magic Trackpad",
-        "--expire-time=0",
-        "--icon=input-touchpad",
-        "Recharge Magic Trackpad",
-        f"Current capacity: {percentage}%",
-    ], check=False)
+    try:
+        subprocess.Popen([
+            "notify-send",
+            "--urgency=critical",
+            "--app-name=Magic Trackpad",
+            "--expire-time=0",
+            "--icon=input-touchpad",
+            "Recharge Magic Trackpad",
+            f"Current capacity: {percentage}%",
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as error:
+        print(f"magic-trackpad-battery: notification failed: {error}", file=sys.stderr, flush=True)
 
 
 def check_low_battery(percentage, charging, notified_thresholds):
@@ -133,11 +148,16 @@ def check_low_battery(percentage, charging, notified_thresholds):
         # Reset all thresholds when charging so they re-fire next discharge
         return set()
 
-    for threshold in LOW_BATTERY_THRESHOLDS:
-        if percentage <= threshold and threshold not in notified_thresholds:
-            notify_low_battery(percentage)
-            notified_thresholds.add(threshold)
-            break  # one notification per poll cycle
+    crossed = {
+        threshold
+        for threshold in LOW_BATTERY_THRESHOLDS
+        if percentage <= threshold and threshold not in notified_thresholds
+    }
+    if crossed:
+        notify_low_battery(percentage)
+        notified_thresholds.update(
+            threshold for threshold in LOW_BATTERY_THRESHOLDS if percentage <= threshold
+        )
 
     # Clear thresholds the battery has charged back above
     return {t for t in notified_thresholds if percentage <= t}
@@ -145,8 +165,14 @@ def check_low_battery(percentage, charging, notified_thresholds):
 
 def main():
     print("magic-trackpad-battery: starting", flush=True)
-    print(f"magic-trackpad-battery: JSON path: {JSON_PATH}", flush=True)
+    try:
+        json_path = state_path()
+    except RuntimeError as error:
+        print(f"magic-trackpad-battery: {error}", file=sys.stderr, flush=True)
+        return 1
+    print(f"magic-trackpad-battery: JSON path: {json_path}", flush=True)
 
+    notified = set()
     while True:
         device, device_name = find_hidraw()
         if device is None:
@@ -163,7 +189,6 @@ def main():
             time.sleep(RETRY_INTERVAL)
             continue
 
-        notified = set()
         try:
             while True:
                 result = read_battery(fd)
@@ -189,4 +214,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

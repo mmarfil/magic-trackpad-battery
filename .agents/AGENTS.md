@@ -20,12 +20,12 @@ only reports battery over USB (always 0% on Bluetooth).
 | File | Purpose |
 |------|---------|
 | `magic-trackpad-battery` | Main daemon (Python) — polls hidraw every 5 min |
-| `magic-trackpad-battery-waybar` | Waybar helper (Bash) — reads JSON, outputs Waybar format |
+| `magic-trackpad-battery-waybar` | Waybar helper (Python) — reads JSON, outputs Waybar format |
 | `magic-trackpad-connect` | Auto-connect script (Bash) — reconnects paired devices via bluetoothctl |
 | `magic-trackpad-battery.service` | systemd user service for battery daemon |
 | `magic-trackpad-autoconnect.service` | systemd oneshot service for auto-connect |
 | `magic-trackpad-autoconnect.timer` | systemd timer — runs auto-connect every 30s |
-| `99-magic-trackpad.rules` | udev rule for hidraw access (GROUP="input") |
+| `72-magic-trackpad.rules` | udev rule granting the active session hidraw access |
 | `Makefile` | install / uninstall / test targets |
 | `aur/PKGBUILD` | Arch Linux AUR package definition |
 
@@ -35,14 +35,14 @@ The package is on AUR as `magic-trackpad-battery-git`. The source of truth is `a
 
 **To publish an update:**
 
-1. Update `pkgver` in `aur/PKGBUILD` (format: `rN.SHORTHASH` from `git describe --long`)
+1. Update `pkgver` in `aur/PKGBUILD` from the current checked-in source with `printf 'r%s.%s\n' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"`
 2. Commit the PKGBUILD change to the main repo
 3. Push the main repo to GitHub (AUR package builds from the GitHub source)
 4. Run `make aur-publish` — this clones the AUR repo, copies the PKGBUILD, regenerates `.SRCINFO`, and pushes
 
 ## Development Notes
 
-- No external dependencies — Python stdlib + coreutils only
+- No third-party Python packages; runtime integration uses Bash, BlueZ, libnotify, and systemd
 - The daemon writes JSON atomically (rename) to `$XDG_RUNTIME_DIR/`
 - Low battery notifications at 20%, 15%, 10%, 5%
 - Device reconnection: re-scans /sys/class/hidraw/ every 30s when disconnected

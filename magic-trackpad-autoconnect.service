@@ -5,10 +5,9 @@ Wants=bluetooth.target
 
 [Service]
 Type=oneshot
-Environment=MAX_ATTEMPTS=3
-Environment=SLEEP_SECONDS=2
 Environment=CONNECT_TIMEOUT=4
 ExecStart=%h/.local/bin/magic-trackpad-connect
+# Exit 1 means a paired Trackpad is currently unavailable.
 SuccessExitStatus=1
 NoNewPrivileges=true
 ProtectSystem=full
